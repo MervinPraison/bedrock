@@ -1,0 +1,29 @@
+name: Integration
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Copy .env file
+        working-directory: .devcontainer
+        run: cp .env.example ../.env
+
+      - name: Start dev container and test
+        uses: devcontainers/ci@v0.3
+        env:
+          # Newer Docker on GitHub runners blocks bake from reading the
+          # devcontainers CLI's generated Dockerfile in /tmp without this
+          BUILDX_BAKE_ENTITLEMENTS_FS: 0
+        with:
+          configFile: .devcontainer/devcontainer.json
+          runCmd: |
+            composer install --no-interaction --no-progress --prefer-dist
+            wp core install --url=http://localhost:8080 --title=Bedrock --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email --allow-root
+
+      - name: Verify installation
+        run: |
+          curl -s http://localhost:8080 | grep "<title>Bedrock"
